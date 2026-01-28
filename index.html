@@ -30,13 +30,13 @@
         <div class="rule-box">
             <strong>📝 測驗規則：</strong><br>
             1. 隨機抽取 <strong>10 題</strong>，每題 <strong>30 秒</strong>。<br>
-            2. 得分 = 10 分 + 剩餘時間獎勵。<br>
-            3. 答錯或逾時不計分。
+            2. 答對得分 = 10 分 + 剩餘時間獎勵。<br>
+            3. 成績將自動同步至系統排行榜。
         </div>
-        <p>請選擇座號開始：</p>
+        <p>請選擇座號：</p>
         <select id="player-no"></select>
-        <button id="start-btn" onclick="initGame()" disabled>載入題庫中...</button>
-        <div id="debug-log">系統狀態：初始化...</div>
+        <button id="start-btn" onclick="initGame()" disabled>讀取題庫中...</button>
+        <div id="debug-log">系統狀態：準備連線...</div>
     </div>
 
     <div id="quiz-area" class="hidden">
@@ -56,23 +56,25 @@
 
     <div id="end-screen" class="hidden">
         <h3>測驗完成</h3>
-        <p>工作項目 3：冷媒管加工</p>
+        <p style="margin:0;">工作項目 3</p>
         <h1 id="final-score" style="font-size: 3.5em; color: var(--main); margin: 10px 0;">0</h1>
         <div id="rank-box" style="margin-top:15px; text-align:left; background:#f9f9f9; padding:15px; border-radius:10px; font-size: 0.9em;">
-            <div style="text-align:center; font-weight:bold; color: #555; margin-bottom: 8px;">🏆 本次測驗前五名</div>
-            <div id="rank-content">排行榜同步中...</div>
+            <div style="text-align:center; font-weight:bold; color: #555; margin-bottom: 8px;">🏆 全班前五名</div>
+            <div id="rank-content">載入中...</div>
         </div>
         <button onclick="location.reload()" style="margin-top:20px; padding:10px 25px; border-radius:20px; border:none; background:var(--main); color:white; cursor:pointer;">重新測驗</button>
     </div>
 </div>
 
 <script>
-    // 配置連結
+    // 題庫網址 (已轉換為 CSV)
     const SHEET_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRDWur33SoTIShRYYWyZNnj2fjA9O6700N5I_vQIq1E5_ncJ_4beHyECZ95rbvybQRLSygizbRiVzZ2/pub?output=csv";
+    // 排行榜網址 (您的專屬 CSV)
+    const RANK_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRKUireJCM-o0M_tfD_RSk0KQVFqYewAcCA6d5BZxFPfPL3p5UrfQ6CrWR6nFNQwLB38LkZ0TeX3-w2/pub?output=csv";
+    // 表單網址
     const FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSeCpdu6Z0UOaljs6f-H-QL0Esnh0ywERc2mzVMP9SnAcjqBgg/formResponse";
     const ID_NO = "entry.380705505";
     const ID_SCORE = "entry.330260248";
-    const RANK_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRKUireJCM-o0M_tfD_RSk0KQVFqYewAcCA6d5BZxFPfPL3p5UrfQ6CrWR6nFNQwLB38LkZ0TeX3-w2/pub?output=csv";
 
     let allQuestions = [];
     let gameQuestions = [];
@@ -80,17 +82,16 @@
 
     function log(txt) { document.getElementById('debug-log').innerHTML += "<br>> " + txt; }
 
-    // 初始化座號
     const sel = document.getElementById('player-no');
     for(let i=1; i<=36; i++){
         let o = document.createElement('option'); o.value = i; o.textContent = i + " 號";
         sel.appendChild(o);
     }
 
-    // 載入題庫
     async function loadData() {
         try {
             const res = await fetch(SHEET_CSV + "?t=" + Date.now());
+            if (!res.ok) throw new Error("題庫網址失效");
             const text = await res.text();
             const lines = text.split(/\r?\n/);
             const temp = [];
@@ -104,8 +105,8 @@
                 allQuestions = temp;
                 document.getElementById('start-btn').disabled = false;
                 document.getElementById('start-btn').innerText = "開始測驗";
-                log("冷媒管加工題庫載入成功！共 " + allQuestions.length + " 題。");
-            } else { log("題庫解析失敗，請確認 B 欄為數字 1-4。"); }
+                log("成功連線工作項目 3 題庫！");
+            } else { log("題庫內容解析失敗。"); }
         } catch (e) { log("連線失敗：" + e.message); }
     }
 
@@ -180,7 +181,7 @@
                 <div style="display:flex; justify-content:space-between; padding:5px 0; border-bottom: 1px dashed #ddd;">
                     <span>${i+1}. ${it.n} 號</span>
                     <span>${it.s} 分</span>
-                </div>`).join('') || "目前尚無排名紀錄";
+                </div>`).join('') || "尚無排名紀錄";
         } catch (e) { content.innerText = "排行榜同步中..."; }
     }
     window.onload = loadData;
