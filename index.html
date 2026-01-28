@@ -10,7 +10,7 @@
         #game-box { background: white; width: 95%; max-width: 450px; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; }
         #timer-bg { width: 100%; height: 10px; background: #eee; border-radius: 5px; overflow: hidden; margin: 15px 0; }
         #timer-fill { width: 100%; height: 100%; background: #ff7675; transition: width 0.1s linear; }
-        .q-text { font-size: 1.15em; font-weight: bold; margin-bottom: 20px; min-height: 60px; color: #2d3436; text-align: left; line-height: 1.4; }
+        .q-text { font-size: 1.1em; font-weight: bold; margin-bottom: 20px; min-height: 60px; color: #2d3436; text-align: left; line-height: 1.5; }
         .options-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
         .opt-btn { padding: 12px; border: 2px solid #e0e0e0; border-radius: 10px; background: white; cursor: pointer; font-size: 1.05em; text-align: left; transition: 0.2s; }
         .correct { background: var(--win) !important; color: white; border-color: var(--win); }
@@ -19,7 +19,8 @@
         .rule-box { background: #fff9db; border: 1px solid #ffe066; padding: 12px; border-radius: 10px; text-align: left; font-size: 0.9em; margin-bottom: 20px; color: #665c33; }
         select#player-no { width: 100%; padding: 10px; font-size: 1.1em; border-radius: 8px; border: 2px solid var(--main); margin-bottom: 20px; }
         button#start-btn { padding: 12px 35px; font-size: 1.2em; background: var(--main); color: white; border: none; border-radius: 50px; cursor: pointer; }
-        #debug-log { background: #222; color: #00ff00; padding: 10px; font-family: monospace; font-size: 11px; text-align: left; margin-top: 20px; border-radius: 5px; max-height: 80px; overflow-y: auto; word-break: break-all; }
+        button#start-btn:disabled { background: #ccc; cursor: not-allowed; }
+        #debug-log { background: #222; color: #00ff00; padding: 10px; font-family: monospace; font-size: 11px; text-align: left; margin-top: 20px; border-radius: 5px; max-height: 100px; overflow-y: auto; }
     </style>
 </head>
 <body>
@@ -31,12 +32,12 @@
             <strong>📝 測驗規則：</strong><br>
             1. 隨機抽取 <strong>10 題</strong>，每題 <strong>30 秒</strong>。<br>
             2. 答對得分 = 10 分 + 剩餘時間獎勵。<br>
-            3. 成績將自動同步至系統排行榜。
+            3. 成績將自動同步至排行榜。
         </div>
         <p>請選擇座號：</p>
         <select id="player-no"></select>
-        <button id="start-btn" onclick="initGame()" disabled>讀取題庫中...</button>
-        <div id="debug-log">系統狀態：準備連線...</div>
+        <button id="start-btn" onclick="initGame()" disabled>正在連線題庫...</button>
+        <div id="debug-log">系統狀態：初始化中...</div>
     </div>
 
     <div id="quiz-area" class="hidden">
@@ -56,22 +57,19 @@
 
     <div id="end-screen" class="hidden">
         <h3>測驗完成</h3>
-        <p style="margin:0;">工作項目 3</p>
         <h1 id="final-score" style="font-size: 3.5em; color: var(--main); margin: 10px 0;">0</h1>
         <div id="rank-box" style="margin-top:15px; text-align:left; background:#f9f9f9; padding:15px; border-radius:10px; font-size: 0.9em;">
-            <div style="text-align:center; font-weight:bold; color: #555; margin-bottom: 8px;">🏆 全班前五名</div>
-            <div id="rank-content">載入中...</div>
+            <div style="text-align:center; font-weight:bold; color: #555; margin-bottom: 8px;">🏆 本次測驗前五名</div>
+            <div id="rank-content">排行榜同步中...</div>
         </div>
         <button onclick="location.reload()" style="margin-top:20px; padding:10px 25px; border-radius:20px; border:none; background:var(--main); color:white; cursor:pointer;">重新測驗</button>
     </div>
 </div>
 
 <script>
-    // 題庫網址 (已轉換為 CSV)
+    // --- 已修正的 CSV 連結 ---
     const SHEET_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRDWur33SoTIShRYYWyZNnj2fjA9O6700N5I_vQIq1E5_ncJ_4beHyECZ95rbvybQRLSygizbRiVzZ2/pub?output=csv";
-    // 排行榜網址 (您的專屬 CSV)
     const RANK_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRKUireJCM-o0M_tfD_RSk0KQVFqYewAcCA6d5BZxFPfPL3p5UrfQ6CrWR6nFNQwLB38LkZ0TeX3-w2/pub?output=csv";
-    // 表單網址
     const FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSeCpdu6Z0UOaljs6f-H-QL0Esnh0ywERc2mzVMP9SnAcjqBgg/formResponse";
     const ID_NO = "entry.380705505";
     const ID_SCORE = "entry.330260248";
@@ -90,9 +88,17 @@
 
     async function loadData() {
         try {
-            const res = await fetch(SHEET_CSV + "?t=" + Date.now());
-            if (!res.ok) throw new Error("題庫網址失效");
+            log("正在連線 Google 雲端題庫...");
+            const res = await fetch(SHEET_CSV + "&t=" + Date.now(), { cache: "no-store" });
+            if (!res.ok) throw new Error("HTTP 錯誤 " + res.status);
+            
             const text = await res.text();
+            
+            // 安全檢查：確保沒抓到 HTML
+            if (text.trim().startsWith("<")) {
+                throw new Error("抓到的是網頁格式，請檢查 CSV 發佈設定。");
+            }
+
             const lines = text.split(/\r?\n/);
             const temp = [];
             lines.forEach((line) => {
@@ -101,13 +107,18 @@
                     temp.push({ q: cols[0], opts: [cols[2], cols[3], cols[4], cols[5]], a: parseInt(cols[1]) });
                 }
             });
+
             if (temp.length > 0) {
                 allQuestions = temp;
                 document.getElementById('start-btn').disabled = false;
                 document.getElementById('start-btn').innerText = "開始測驗";
-                log("成功連線工作項目 3 題庫！");
-            } else { log("題庫內容解析失敗。"); }
-        } catch (e) { log("連線失敗：" + e.message); }
+                log("成功載入 " + allQuestions.length + " 題題庫！");
+            } else {
+                log("解析失敗：題庫內容為空或格式不符。");
+            }
+        } catch (e) {
+            log("❌ 連線失敗：" + e.message);
+        }
     }
 
     function initGame() {
