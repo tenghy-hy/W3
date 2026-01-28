@@ -69,6 +69,8 @@
     // --- 參數設定 ---
     const SHEET_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRDWur33SoTIShRYYWyZNnj2fjA9O6700N5I_vQIq1E5_ncJ_4beHyECZ95rbvybQRLSygizbRiVzZ2/pub?output=csv";
     const RANK_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRKUireJCM-o0M_tfD_RSk0KQVFqYewAcCA6d5BZxFPfPL3p5UrfQ6CrWR6nFNQwLB38LkZ0TeX3-w2/pub?output=csv";
+    
+    // 修正後的 FORM_URL：必須使用 formResponse 結尾
     const FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSeCpdu6Z0UOaljs6f-H-QL0Esnh0ywERc2mzVMP9SnAcjqBgg/formResponse";
     const ID_NO = "entry.380705505";
     const ID_SCORE = "entry.330260248";
@@ -153,8 +155,14 @@
         document.getElementById('quiz-area').classList.add('hidden');
         document.getElementById('end-screen').classList.remove('hidden');
         document.getElementById('final-score').innerText = score;
+        
+        // 構建提交 URL
         const finalUrl = `${FORM_URL}?${ID_NO}=${encodeURIComponent(sel.value)}&${ID_SCORE}=${score}&submit=Submit`;
+        
+        // 使用 no-cors 模式發送，避免跨網域錯誤
         fetch(finalUrl, { mode: 'no-cors' });
+        
+        log("成績已嘗試上傳至 Google 表單。");
         loadRank();
     }
 
@@ -166,7 +174,6 @@
             const lines = text.split(/\r?\n/).filter(l => l.trim() !== "");
             let data = lines.slice(1).map(line => {
                 const c = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(item => item.replace(/^"|"$/g, '').trim());
-                // [1] 為座號, [2] 為分數 (根據試算表結構)
                 return { n: c[1], s: parseInt(c[2]) || 0 };
             }).filter(i => i.n && !isNaN(i.s));
             data.sort((a, b) => b.s - a.s);
