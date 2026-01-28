@@ -19,7 +19,6 @@
         .rule-box { background: #fff9db; border: 1px solid #ffe066; padding: 12px; border-radius: 10px; text-align: left; font-size: 0.9em; margin-bottom: 20px; color: #665c33; }
         select#player-no { width: 100%; padding: 10px; font-size: 1.1em; border-radius: 8px; border: 2px solid var(--main); margin-bottom: 20px; }
         button#start-btn { padding: 12px 35px; font-size: 1.2em; background: var(--main); color: white; border: none; border-radius: 50px; cursor: pointer; }
-        button#start-btn:disabled { background: #ccc; cursor: not-allowed; }
         #debug-log { background: #222; color: #00ff00; padding: 10px; font-family: monospace; font-size: 11px; text-align: left; margin-top: 20px; border-radius: 5px; max-height: 80px; overflow-y: auto; }
     </style>
 </head>
@@ -29,15 +28,14 @@
     <div id="start-screen">
         <h2 style="color: var(--main); margin-bottom: 10px;">工作項目 3：冷媒管加工</h2>
         <div class="rule-box">
-            <strong>📝 計分規則說明：</strong><br>
-            1. 每次隨機抽取 <strong>10 題</strong>。<br>
-            2. 每題作答時間 <strong>30 秒</strong>。<br>
-            3. 答對得分 = 基礎 10 分 + 剩餘時間獎勵。<br>
-            4. 答錯或逾時不計分。
+            <strong>📝 測驗說明：</strong><br>
+            1. 隨機抽取 <strong>10 題</strong>，每題 <strong>30 秒</strong>。<br>
+            2. 答對得分 = 10 分 + 剩餘秒數獎勵。<br>
+            3. 成績將即時上傳並更新於排行榜。
         </div>
-        <p>請選擇座號開始測驗：</p>
+        <p>請選擇座號：</p>
         <select id="player-no"></select>
-        <button id="start-btn" onclick="initGame()" disabled>連線中...</button>
+        <button id="start-btn" onclick="initGame()" disabled>讀取題庫中...</button>
         <div id="debug-log">系統狀態：初始化...</div>
     </div>
 
@@ -58,32 +56,29 @@
 
     <div id="end-screen" class="hidden">
         <h3>測驗完成</h3>
-        <p>工作項目 3：冷媒管加工</p>
         <h1 id="final-score" style="font-size: 3.5em; color: var(--main); margin: 10px 0;">0</h1>
         <div id="rank-box" style="margin-top:15px; text-align:left; background:#f9f9f9; padding:15px; border-radius:10px; font-size: 0.9em;">
             <div style="text-align:center; font-weight:bold; color: #555; margin-bottom: 8px;">🏆 全班前五名排行榜</div>
-            <div id="rank-content">排行榜載入中...</div>
+            <div id="rank-content">排行榜同步中...</div>
         </div>
         <button onclick="location.reload()" style="margin-top:20px; padding:10px 25px; border-radius:20px; border:none; background:var(--main); color:white; cursor:pointer;">重新測驗</button>
     </div>
 </div>
 
 <script>
-    // 配置連結
+    // --- 參數設定 ---
     const SHEET_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRDWur33SoTIShRYYWyZNnj2fjA9O6700N5I_vQIq1E5_ncJ_4beHyECZ95rbvybQRLSygizbRiVzZ2/pub?output=csv";
     const RANK_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRKUireJCM-o0M_tfD_RSk0KQVFqYewAcCA6d5BZxFPfPL3p5UrfQ6CrWR6nFNQwLB38LkZ0TeX3-w2/pub?output=csv";
     const FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSeCpdu6Z0UOaljs6f-H-QL0Esnh0ywERc2mzVMP9SnAcjqBgg/formResponse";
     const ID_NO = "entry.380705505";
     const ID_SCORE = "entry.330260248";
 
-    let allQuestions = [];
-    let gameQuestions = [];
-    let currentIdx = 0, score = 0, timer, timeLeft = 30, currentCorrectValue = 0;
+    let allQuestions = [], gameQuestions = [], currentIdx = 0, score = 0, timer, timeLeft = 30, currentCorrectValue = 0;
 
     function log(txt) { document.getElementById('debug-log').innerHTML += "<br>> " + txt; }
 
     const sel = document.getElementById('player-no');
-    for(let i=1; i<=36; i++){
+    for(let i=1; i<=36; i++) {
         let o = document.createElement('option'); o.value = i; o.textContent = i + " 號";
         sel.appendChild(o);
     }
@@ -94,7 +89,7 @@
             const text = await res.text();
             const lines = text.split(/\r?\n/);
             const temp = [];
-            lines.forEach((line) => {
+            lines.forEach(line => {
                 const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.replace(/^"|"$/g, '').trim());
                 if (cols.length >= 6 && ['1','2','3','4'].includes(cols[1])) {
                     temp.push({ q: cols[0], opts: [cols[2], cols[3], cols[4], cols[5]], a: parseInt(cols[1]) });
@@ -104,9 +99,9 @@
                 allQuestions = temp;
                 document.getElementById('start-btn').disabled = false;
                 document.getElementById('start-btn').innerText = "開始測驗";
-                log("題庫載入成功！共 " + allQuestions.length + " 題。");
-            } else { log("解析失敗，請確認試算表格式。"); }
-        } catch (e) { log("連線出錯：" + e.message); }
+                log("成功連線題庫，共 " + allQuestions.length + " 題。");
+            } else { log("題庫解析異常。"); }
+        } catch (e) { log("連線失敗：" + e.message); }
     }
 
     function initGame() {
@@ -125,15 +120,13 @@
         const btns = document.querySelectorAll('.opt-btn');
         btns.forEach((btn, i) => {
             btn.innerText = "(" + (i + 1) + ") " + data.opts[i];
-            btn.className = 'opt-btn';
-            btn.disabled = false;
+            btn.className = 'opt-btn'; btn.disabled = false;
         });
         startTimer();
     }
 
     function startTimer() {
-        timeLeft = 30;
-        clearInterval(timer);
+        timeLeft = 30; clearInterval(timer);
         timer = setInterval(() => {
             timeLeft -= 0.1;
             document.getElementById('timer-fill').style.width = (timeLeft / 30 * 100) + "%";
@@ -168,30 +161,22 @@
     async function loadRank() {
         const content = document.getElementById('rank-content');
         try {
-            const res = await fetch(RANK_CSV + "?t=" + Date.now());
+            const res = await fetch(RANK_CSV + "&t=" + Date.now());
             const text = await res.text();
             const lines = text.split(/\r?\n/).filter(l => l.trim() !== "");
-            
-            // 解析：假設 B 欄 [1] 是座號，C 欄 [2] 是分數
             let data = lines.slice(1).map(line => {
                 const c = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(item => item.replace(/^"|"$/g, '').trim());
+                // [1] 為座號, [2] 為分數 (根據試算表結構)
                 return { n: c[1], s: parseInt(c[2]) || 0 };
             }).filter(i => i.n && !isNaN(i.s));
-
             data.sort((a, b) => b.s - a.s);
-            
-            if (data.length > 0) {
-                content.innerHTML = data.slice(0, 5).map((it, i) => `
-                    <div style="display:flex; justify-content:space-between; padding:5px 0; border-bottom: 1px dashed #ddd;">
-                        <span>${i+1}. ${it.n} 號</span>
-                        <span>${it.s} 分</span>
-                    </div>`).join('');
-            } else {
-                content.innerText = "暫無排名資料";
-            }
+            content.innerHTML = data.slice(0, 5).map((it, i) => `
+                <div style="display:flex; justify-content:space-between; padding:5px 0; border-bottom: 1px dashed #ddd;">
+                    <span>${i+1}. ${it.n} 號</span>
+                    <span>${it.s} 分</span>
+                </div>`).join('') || "尚無排名紀錄";
         } catch (e) { content.innerText = "排行榜同步中..."; }
     }
-
     window.onload = loadData;
 </script>
 </body>
